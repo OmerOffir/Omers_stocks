@@ -2,7 +2,7 @@
 setlocal
 
 REM go to your repo root
-cd /d "C:\Users\user\PycharmProjects\stock_detector"
+cd /d "C:\Users\user\PycharmProjects\Omers_stocks"
 
 REM ensure this folder is on PYTHONPATH so 'bots' imports work
 set "PYTHONPATH=%CD%"
