@@ -1,0 +1,90 @@
+{
+  "APP": [
+    {
+      "direction": "up",
+      "level": 445.0
+    },
+    {
+      "direction": "down",
+      "level": 427.0
+    }
+  ],
+  "DDOG": [
+    {
+      "direction": "up",
+      "level": 130.0
+    }
+  ],
+  "ETHUSD": [
+    {
+      "direction": null,
+      "level": 4400.0
+    }
+  ],
+  "GOOGL": [
+    {
+      "direction": "down",
+      "level": 195.0
+    },
+    {
+      "direction": null,
+      "level": 199.95
+    },
+    {
+      "direction": null,
+      "level": 196.9
+    }
+  ],
+  "MNDY": [
+    {
+      "direction": null,
+      "level": 188.2
+    }
+  ],
+  "NNE": [
+    {
+      "direction": null,
+      "level": 36.4
+    }
+  ],
+  "OKLO": [
+    {
+      "direction": null,
+      "level": 73.0
+    },
+    {
+      "direction": "down",
+      "level": 67.5
+    },
+    {
+      "direction": "down",
+      "level": 66.4
+    }
+  ],
+  "PLTR": [
+    {
+      "direction": "down",
+      "level": 170.1
+    },
+    {
+      "direction": "down",
+      "level": 157.5
+    }
+  ],
+  "QQQ": [
+    {
+      "direction": "down",
+      "level": 571.0
+    },
+    {
+      "direction": "down",
+      "level": 563.9
+    }
+  ],
+  "U": [
+    {
+      "direction": null,
+      "level": 39.0
+    }
+  ]
+}

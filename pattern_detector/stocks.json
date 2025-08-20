@@ -1,0 +1,10 @@
+{
+  "tickers_files": ["stocks_watchlist/core.txt"],
+  "tickers": ["AAPL","COST","MAGS","QQQ"],
+  "period": "1y",
+  "interval": "1d",
+  "risk": { "atr_mult": 1.0, "percent_buffer": 0.0025 },
+  "momentum_filter": { "rsi_min": 40, "rsi_hot": 80, "macd_hist_rising_window": 3 },
+  "min_rr_ok": 1.2,
+  "long_only": true
+}
