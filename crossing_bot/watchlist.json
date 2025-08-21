@@ -9,6 +9,12 @@
       "level": 427.0
     }
   ],
+  "COIN": [
+    {
+      "direction": "up",
+      "level": 312.0
+    }
+  ],
   "DDOG": [
     {
       "direction": "up",
@@ -33,6 +39,22 @@
     {
       "direction": null,
       "level": 196.9
+    },
+    {
+      "direction": null,
+      "level": 200.0
+    }
+  ],
+  "IWM": [
+    {
+      "direction": "down",
+      "level": 224.5
+    }
+  ],
+  "MAGS": [
+    {
+      "direction": null,
+      "level": 58.45
     }
   ],
   "MNDY": [
@@ -59,6 +81,10 @@
     {
       "direction": "down",
       "level": 66.4
+    },
+    {
+      "direction": null,
+      "level": 67.0
     }
   ],
   "PLTR": [
@@ -79,6 +105,14 @@
     {
       "direction": "down",
       "level": 563.9
+    },
+    {
+      "direction": "down",
+      "level": 562.0
+    },
+    {
+      "direction": null,
+      "level": 562.9
     }
   ],
   "U": [

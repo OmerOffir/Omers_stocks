@@ -2,12 +2,15 @@
 from __future__ import annotations
 from typing import Optional, Tuple
 import os
+os.environ.setdefault("MPLBACKEND", "Agg")
 
 import numpy as np
 import pandas as pd
 import yfinance as yf
-import mplfinance as mpf
+import matplotlib
+matplotlib.use("Agg", force=True)
 import matplotlib.pyplot as plt
+import mplfinance as mpf
 
 
 class CandlestickPlotter:

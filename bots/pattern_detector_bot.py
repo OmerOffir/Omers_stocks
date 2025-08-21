@@ -121,6 +121,95 @@ class BotPatternDetector:
                 self.discord_notifier.send_embed("detected_stocks", embed)
         self.clean_images_folder("graph_maker/images")
 
+    def check_one_symbol(self, ticker: str) -> bool:
+        """
+        Run the detector only for `ticker`. 
+        Returns True if something actionable was sent, else False.
+        """
+        # Build a one-off PatternDirector with the same settings as the main one
+        pd_single = PatternDirector(config={
+            "tickers": [ticker.upper()],
+            "period":  self.pattern_driver.period,
+            "interval": self.pattern_driver.interval,
+            "risk": {
+                "atr_mult": self.pattern_driver.atr_mult,
+                "percent_buffer": self.pattern_driver.pct_buf
+            },
+            "long_only": self.pattern_driver.long_only,
+            "show_bearish_info": self.pattern_driver.show_bearish_info,
+            "min_rr_ok": self.pattern_driver.min_rr_ok,
+            "momentum_filter": {
+                "rsi_min": self.pattern_driver.rsi_min,
+                "rsi_hot": self.pattern_driver.rsi_hot,
+                "macd_hist_rising_window": self.pattern_driver.macd_hist_rising_window
+            },
+            "require_above_sma150_for_longs": self.pattern_driver.require_above_sma150_for_longs,
+            "require_below_sma150_for_shorts": self.pattern_driver.require_below_sma150_for_shorts,
+            "sma150_recent_cross_days": self.pattern_driver.sma150_recent_cross_days,
+            "sma150_near_band_pct": self.pattern_driver.sma150_near_band_pct,
+        })
+
+        results = pd_single.run(include_report=True)
+        data = results.get(ticker.upper())
+        if not data:
+            return False
+
+        best   = data.get("best")
+        report = data.get("report")
+        price  = data.get("current_price")
+
+        if not best or not report:
+            return False
+
+        # Build embed exactly like your daily method
+        color = self._pick_color(best.get("status",""), best.get("state",""))
+        rr = best.get("rr")
+        rr_txt = f"{rr:.2f}R" if isinstance(rr, (int, float)) else "-"
+
+        header = (
+            f"**{best['pattern']}** • **{best['side'].title()}** • **{best['state']}** • "
+            f"{'⏳ PENDING' if best['status']=='PENDING' else best['status']}\n"
+            f"*{best['date']} • {pd_single.period}, {pd_single.interval}*"
+        )
+        current_price = f"$ {price}"
+
+        levels = (
+            f"🔓 **Entry** {self._fmt(best.get('entry'))}  •  "
+            f"🛑 **Stop** {self._fmt(best.get('stop'))}  •  "
+            f"🎯 **Target** {self._fmt(best.get('target'))}"
+        )
+
+        embed = {
+            "title": f"🚀 Stock Pattern Detect Alert — {ticker.upper()}",
+            "description": (
+                f"{header}\n\n"
+                f"**Stock Price**\n{current_price}\n\n"
+                f"**Levels**\n{levels}\n\n"
+                f"**Risk/Reward**\n{rr_txt}\n\n"
+                f"**Next Step**\n{self._next_step(best)}\n\n"
+                f"**Details**\n{self._safe_codeblock(report)}"
+            ),
+            "color": color,
+            "fields": [
+                {"name": "Pattern", "value": f"{best['pattern']} ({best['state']})", "inline": True},
+                {"name": "Status", "value": best['status'], "inline": True},
+            ],
+            "footer": {"text": "PatternDirector"},
+            "timestamp": pd.Timestamp.utcnow().isoformat()
+        }
+
+        try:
+            image_path = self.plotter.plot(
+                30, ticker.upper(), theme="dark", draw_sma150=True, mav=None, show_price_line=False
+            )
+            self.discord_notifier.send_embed_with_image("detected_stocks", embed, image_path)
+        except Exception as e:
+            embed["description"] += f"\n\n*Chart attachment unavailable ({e}).*"
+            self.discord_notifier.send_embed("detected_stocks", embed)
+
+        # tidy
+        self.clean_images_folder("graph_maker/images")
+        return True
 
 if __name__ == "__main__":
     BotPatternDetector().check_stocks_patterns()

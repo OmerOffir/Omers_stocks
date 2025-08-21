@@ -27,6 +27,7 @@ from bots.pattern_detector_bot import BotPatternDetector
 DISCORD_TOKEN = f"{discord_tok.dis_1}{discord_tok.dis_2}{discord_tok.dis_3}"
 
 LISTEN_CHANNEL_ID = int(os.getenv("LISTEN_CHANNEL_ID", "0")) or 1406720397893828760  # replace fallback
+PATTERN_CHANNEL_ID = int(os.getenv("PATTERN_CHANNEL_ID", "0")) or 1404051018320449627
 ALERT_CHANNEL_ID  = int(os.getenv("ALERT_CHANNEL_ID", "0")) or None  # where crossing alerts are posted; defaults to listen channel
 
 # Pattern detections destination
@@ -84,11 +85,12 @@ def _make_key(ticker: str, level: float | str, direction: str | None) -> str:
 # Discord Cross-Alert Bot (with auto monitor)
 # -----------------------
 class CrossAlertBot:
-    def __init__(self):
+    def __init__(self, pattern_bot: BotPatternDetector | None = None):
         intents = discord.Intents.default()
         intents.message_content = True  # ensure Message Content Intent enabled in portal
         self.bot = commands.Bot(command_prefix="!", intents=intents)
         self.tree = self.bot.tree
+        self.pattern_bot = pattern_bot
 
         self.log = logging.getLogger("CrossAlertBot")
         self._task: asyncio.Task | None = None
@@ -100,6 +102,14 @@ class CrossAlertBot:
         self.last_prices: dict[str, float] = {}             # last seen price per ticker (for *crossing* detection)
 
         self._setup_handlers()
+
+    def _normalize_ticker_for_yf(self, t: str) -> str:
+        t = t.upper().strip()
+        if "-" in t:
+            return t
+        m = re.fullmatch(r"([A-Z]{2,5})USD", t)
+        return f"{m.group(1)}-USD" if m else t
+
 
     # ---------- Handlers / commands ----------
     def _setup_handlers(self):
@@ -122,7 +132,17 @@ class CrossAlertBot:
 
             content = message.content.strip()
 
-            # ---------- text cleanup: "clean <TICKER> [level] [up|down]" ----------
+            # --- handle pattern requests ---
+            if message.channel.id == PATTERN_CHANNEL_ID:
+                if re.fullmatch(r"[A-Za-z0-9.\-]{1,12}", content):
+                    tkr = content.upper()
+                    async with message.channel.typing():
+                        ok = await asyncio.to_thread(self.pattern_bot.check_one_symbol, tkr)
+                    if not ok:
+                        await message.channel.send(f"🧐 `{tkr}` — nothing interesting found.")
+                    return
+                            # ---------- text cleanup: "clean <TICKER> [level] [up|down]" ----------
+
             if content.lower().startswith("clean "):
                 parts = content.split()
                 # clean <TICKER> [level] [direction]
@@ -245,6 +265,23 @@ class CrossAlertBot:
             self.seen.clear()
             _save_json(CACHE_FILE, self.seen)
             await interaction.response.send_message("🧹 Cleared all fired alerts.", ephemeral=True)
+
+        @self.tree.command(name="detect", description="Run pattern detector for a single ticker now")
+        @app_commands.describe(ticker="e.g., GOOGL")
+        async def detect(interaction: discord.Interaction, ticker: str):
+            await interaction.response.defer(ephemeral=True, thinking=True)
+            tkr = self._normalize_ticker_for_yf(ticker)
+            if not re.fullmatch(r"[A-Za-z0-9.\-]{1,12}", tkr):
+                await interaction.followup.send("Ticker format not recognized.", ephemeral=True)
+                return
+            ok = False
+            if self.pattern_bot:
+                ok = await asyncio.to_thread(self.pattern_bot.check_one_symbol, tkr)
+            await interaction.followup.send(
+                f"Done. {'Posted an alert.' if ok else 'Nothing interesting here.'}",
+                ephemeral=True
+            )
+
 
     # ---------- Helpers ----------
     @staticmethod
@@ -457,30 +494,19 @@ class BotManager:
         self.tz = ZoneInfo(tz)
         self.scheduler = AsyncIOScheduler(timezone=self.tz)
         self.pattern_bot = BotPatternDetector()
-        self.cross_bot = CrossAlertBot()
+        self.cross_bot = CrossAlertBot(pattern_bot=self.pattern_bot)
         self.notifier = DiscordNotifier(self.cross_bot)
         self._discord_started = False
 
     async def _run_pattern_bot(self):
         try:
-            result = await self.pattern_bot.check_stocks_patterns()
+            if self.pattern_bot is None:
+                from bots.pattern_detector_bot import BotPatternDetector
+                self.pattern_bot = BotPatternDetector()
+            await asyncio.to_thread(self.pattern_bot.check_stocks_patterns)
         except Exception as e:
             print(f"[pattern_bot] error: {e!r}")
-            return
 
-        to_send: list[str] = []
-        if not result:
-            return
-        if isinstance(result, str):
-            to_send = [result]
-        elif isinstance(result, (list, tuple, set)):
-            to_send = [s for s in result if isinstance(s, str)]
-        else:
-            to_send = [str(result)]
-
-        for msg in to_send:
-            if msg.strip():
-                await self.notifier.send_to_detected_stocks(msg.strip())
 
     async def _start_discord_once(self):
         if self._discord_started:

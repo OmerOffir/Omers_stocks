@@ -1,9 +1,15 @@
 {
   "APP|427|down": true,
   "DDOG|130|up": true,
+  "GOOGL|195|down": true,
+  "GOOGL|196.9|": true,
+  "GOOGL|199.95|": true,
+  "IWM|224.5|down": true,
   "OKLO|66.4|down": true,
   "OKLO|67.5|down": true,
+  "OKLO|67|": true,
   "PLTR|157.5|down": true,
   "PLTR|170.1|down": true,
+  "QQQ|563.9|down": true,
   "QQQ|571|down": true
 }
