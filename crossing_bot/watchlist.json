@@ -43,12 +43,20 @@
     {
       "direction": null,
       "level": 200.0
+    },
+    {
+      "direction": "down",
+      "level": 199.0
     }
   ],
   "IWM": [
     {
       "direction": "down",
       "level": 224.5
+    },
+    {
+      "direction": null,
+      "level": 231.5
     }
   ],
   "MAGS": [
@@ -113,12 +121,22 @@
     {
       "direction": null,
       "level": 562.9
+    },
+    {
+      "direction": "down",
+      "level": 562.8
     }
   ],
   "U": [
     {
       "direction": null,
       "level": 39.0
+    }
+  ],
+  "XLP": [
+    {
+      "direction": null,
+      "level": 81.9
     }
   ]
 }

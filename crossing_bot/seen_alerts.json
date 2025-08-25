@@ -1,15 +1,25 @@
 {
   "APP|427|down": true,
+  "APP|445|up": true,
+  "COIN|312|up": true,
   "DDOG|130|up": true,
+  "ETHUSD|4400|": true,
   "GOOGL|195|down": true,
   "GOOGL|196.9|": true,
   "GOOGL|199.95|": true,
+  "GOOGL|199|down": true,
+  "GOOGL|200|": true,
   "IWM|224.5|down": true,
+  "MAGS|58.45|": true,
   "OKLO|66.4|down": true,
   "OKLO|67.5|down": true,
   "OKLO|67|": true,
   "PLTR|157.5|down": true,
   "PLTR|170.1|down": true,
+  "QQQ|562.8|down": true,
+  "QQQ|562.9|": true,
+  "QQQ|562|down": true,
   "QQQ|563.9|down": true,
-  "QQQ|571|down": true
+  "QQQ|571|down": true,
+  "U|39|": true
 }
