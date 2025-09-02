@@ -9,10 +9,26 @@
       "level": 427.0
     }
   ],
+  "ARKF": [
+    {
+      "direction": null,
+      "level": 55.5
+    }
+  ],
   "COIN": [
     {
       "direction": "up",
       "level": 312.0
+    }
+  ],
+  "CRWD": [
+    {
+      "direction": "down",
+      "level": 416.5
+    },
+    {
+      "direction": "up",
+      "level": 432.5
     }
   ],
   "DDOG": [
@@ -57,12 +73,26 @@
     {
       "direction": null,
       "level": 231.5
+    },
+    {
+      "direction": "down",
+      "level": 232.0
+    }
+  ],
+  "KO": [
+    {
+      "direction": "down",
+      "level": 68.9
     }
   ],
   "MAGS": [
     {
       "direction": null,
       "level": 58.45
+    },
+    {
+      "direction": null,
+      "level": 59.0
     }
   ],
   "MNDY": [
@@ -75,6 +105,12 @@
     {
       "direction": null,
       "level": 36.4
+    }
+  ],
+  "NVDA": [
+    {
+      "direction": "down",
+      "level": 177.6
     }
   ],
   "OKLO": [
@@ -93,6 +129,10 @@
     {
       "direction": null,
       "level": 67.0
+    },
+    {
+      "direction": null,
+      "level": 72.0
     }
   ],
   "PLTR": [
@@ -103,6 +143,14 @@
     {
       "direction": "down",
       "level": 157.5
+    },
+    {
+      "direction": "up",
+      "level": 164.0
+    },
+    {
+      "direction": "down",
+      "level": 153.0
     }
   ],
   "QQQ": [
@@ -125,12 +173,26 @@
     {
       "direction": "down",
       "level": 562.8
+    },
+    {
+      "direction": "down",
+      "level": 567.0
+    },
+    {
+      "direction": "down",
+      "level": 568.4
     }
   ],
   "U": [
     {
       "direction": null,
       "level": 39.0
+    }
+  ],
+  "WMT": [
+    {
+      "direction": "down",
+      "level": 95.2
     }
   ],
   "XLP": [
