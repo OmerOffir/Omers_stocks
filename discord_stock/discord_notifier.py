@@ -3,7 +3,7 @@ import requests
 from pathlib import Path
 
 class DiscordNotifier:
-    def __init__(self, config_path: str = "discord_stock\\webhook_meneger.json"):
+    def __init__(self, config_path: str = r"discord_stock/webhook_meneger.json"):
         self.webhooks = self._load_webhooks(config_path)
 
     def _load_webhooks(self, config_path: str) -> dict:

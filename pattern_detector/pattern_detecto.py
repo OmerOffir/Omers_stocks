@@ -40,7 +40,7 @@ class PatternDirector:
 
     def __init__(self,
                  config: Optional[Dict] = None,
-                 config_path: Optional[str | Path] = "pattern_detector\stocks.json"):
+                 config_path: Optional[str | Path] = r"pattern_detector/stocks.json"):
         """
         config can be a dict like:
           {
