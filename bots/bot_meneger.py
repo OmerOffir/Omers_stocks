@@ -1,4 +1,7 @@
 import os, sys; sys.path.append(".")
+import os, certifi
+os.environ["SSL_CERT_FILE"] = certifi.where()
+os.environ["SSL_CERT_DIR"] = os.path.dirname(certifi.where())
 import re
 import json
 import asyncio
@@ -21,6 +24,8 @@ import yfinance as yf
 
 from bots.pattern_detector_bot import BotPatternDetector
 
+
+logging.basicConfig(level=logging.DEBUG) 
 # -----------------------
 # Config (env-driven)
 # -----------------------
@@ -127,25 +132,45 @@ class CrossAlertBot:
 
         @self.bot.event
         async def on_message(message: discord.Message):
+            # --- deep debug so we know what's happening ---
+            self.log.debug(
+                "on_message: guild=%s channel_id=%s channel_name=%s author_bot=%s content=%r",
+                getattr(message.guild, "id", None),
+                getattr(message.channel, "id", None),
+                getattr(message.channel, "name", None),
+                message.author.bot,
+                message.content,
+            )
+
             if message.author.bot:
                 return
 
-            content = message.content.strip()
+            # If Message Content Intent is off, content can be None/empty
+            if message.content is None:
+                self.log.warning("Message content is None (Message Content Intent disabled?).")
+                return
 
-            # --- handle pattern requests ---
+            content = message.content.strip()
+            if not content:
+                self.log.debug("Empty message content; ignoring.")
+                return
+
+            # ---------------- Pattern requests channel ----------------
             if message.channel.id == PATTERN_CHANNEL_ID:
+                # Expect a bare ticker like AAPL / BTC-USD
                 if re.fullmatch(r"[A-Za-z0-9.\-]{1,12}", content):
-                    tkr = content.upper()
+                    tkr = self._normalize_ticker_for_yf(content)
                     async with message.channel.typing():
                         ok = await asyncio.to_thread(self.pattern_bot.check_one_symbol, tkr)
                     if not ok:
                         await message.channel.send(f"🧐 `{tkr}` — nothing interesting found.")
-                    return
-                            # ---------- text cleanup: "clean <TICKER> [level] [up|down]" ----------
+                else:
+                    await message.channel.send("Send just a ticker, e.g. `AAPL` or `BTC-USD`.")
+                return
 
+            # ---------------- housekeeping: clean ----------------
             if content.lower().startswith("clean "):
                 parts = content.split()
-                # clean <TICKER> [level] [direction]
                 if len(parts) >= 2:
                     t = parts[1].upper()
                     lvl = None
@@ -158,10 +183,9 @@ class CrossAlertBot:
                     if len(parts) >= 4 and parts[3].lower() in ("up", "down"):
                         dirn = parts[3].lower()
 
-                    # ---- 1) Clear fired alerts (seen_alerts.json) ----
+                    # clear fired alerts
                     removed_alerts = 0
                     for k in list(self.seen.keys()):
-                        # key format: TICKER|LEVEL|direction
                         kt, kl, kd = (k.split("|") + ["", ""])[:3]
                         if kt != t:
                             continue
@@ -175,17 +199,15 @@ class CrossAlertBot:
                         removed_alerts += 1
                     _save_json(CACHE_FILE, self.seen)
 
-                    # ---- 2) Clear from watchlist (watchlist.json) ----
+                    # clear from watchlist
                     removed_watches = 0
                     if t in self.watchlist:
                         if lvl is None:
-                            # remove ALL watches for this ticker
                             removed_watches = len(self.watchlist.get(t, []))
                             if removed_watches:
                                 del self.watchlist[t]
                                 _save_json(WATCH_FILE, self.watchlist)
                         else:
-                            # remove specific level +/- direction
                             cur_list = self.watchlist.get(t, [])
                             nl = f"{float(lvl):.4f}".rstrip("0").rstrip(".")
                             new_list = []
@@ -204,7 +226,6 @@ class CrossAlertBot:
                                     del self.watchlist[t]
                                 _save_json(WATCH_FILE, self.watchlist)
 
-                    # ---- reply ----
                     pieces = [f"🧹 Cleared {removed_alerts} fired alert(s)"]
                     if removed_watches or lvl is None:
                         pieces.append(f"and {removed_watches} watch(es)")
@@ -216,17 +237,19 @@ class CrossAlertBot:
                     await message.channel.send("Usage: `clean TICKER [level] [up|down]`")
                 return
 
-            # ---------- normal registration: "TICKER cross LEVEL [up|down]" ----------
+            # ---------------- crossing registrations channel ----------------
             if message.channel.id != LISTEN_CHANNEL_ID:
+                self.log.debug("Ignoring message from non-listen channel %s", message.channel.id)
                 return
 
             parsed = self._parse_alert(content)
             if not parsed:
+                # Helpful hint so you can see it's at least reading messages
+                await message.channel.send("Format: `TICKER cross LEVEL [up|down]` e.g. `AAPL cross 190 up`")
                 return
 
             ticker, level, direction = parsed
             self._add_watch(ticker, level, direction)
-
             dest = self._resolve_alert_channel(message.channel)
             await self._send_confirmation(dest, ticker, level, direction)
             self.log.info(f"[watchlist] added: {ticker} level={level} dir={direction or 'any'}")

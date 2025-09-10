@@ -1,4 +1,7 @@
 import sys;sys.path.append(".")
+import os, certifi
+os.environ["SSL_CERT_FILE"] = certifi.where()
+os.environ["SSL_CERT_DIR"] = os.path.dirname(certifi.where())
 import os
 import json
 import re
