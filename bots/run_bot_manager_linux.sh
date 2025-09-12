@@ -4,5 +4,4 @@
 # go to your repo root
 cd "/home/$(whoami)/PythonProjects/Omers_stocks" || exit 1
 
-export PYTHONPATH="$PWD"
-"./.venv/bin/python" -u -m bots.bot_meneger
+python -u -m bots.bot_meneger
