@@ -86,6 +86,13 @@ class PatternDirector:
         self.thrust_min_body_ratio = float(thrust.get("min_body_ratio", 0.6))
         self.thrust_min_close_pos  = float(thrust.get("min_close_pos", 0.8))
 
+        chan = cfg.get("trendline", {})
+        self.trend_near_atr_mult = float(chan.get("near_atr_mult", 0.5))   # how close to a line counts as "near"
+        self.trend_near_pct      = float(chan.get("near_pct", 0.01))       # or within 1%
+        self.trend_parallel_tol  = float(chan.get("parallel_tol", 0.25))   # |m_hi-m_lo|/max(|m|) <= tol
+        self.trend_min_points    = int(chan.get("min_points", 3))          # min pivot points per side
+
+
     # --------------- Public API ---------------
 
     DEFAULT_LOOKBACKS = {
@@ -99,6 +106,7 @@ class PatternDirector:
         "desc_triangle": 120,
         "sym_triangle": 120,
         "near_sma150": 200,
+        "trend_channel": 180,
 
         # flags
         "flag_bull": 60,
@@ -130,6 +138,7 @@ class PatternDirector:
                 self._detect_ascending_triangle,
                 self._detect_descending_triangle,
                 self._detect_symmetrical_triangle,
+                self._detect_trend_channel_touch,
                 # flags (bull/bear)
                 lambda df: self._detect_flag(df, side="bull"),
                 (lambda df: None) if self.long_only else (lambda df: self._detect_flag(df, side="bear")),
@@ -180,6 +189,23 @@ class PatternDirector:
         return results
 
     # --------------- Config / Data ---------------
+
+    def _fit_line(self, xs: np.ndarray, ys: np.ndarray) -> Optional[Tuple[float,float]]:
+        # returns (m, b) for y = m*x + b, or None if degenerate
+        if len(xs) < 2 or len(ys) < 2: 
+            return None
+        try:
+            m, b = np.polyfit(xs.astype(float), ys.astype(float), 1)
+            if not np.isfinite(m) or not np.isfinite(b):
+                return None
+            return float(m), float(b)
+        except Exception:
+            return None
+
+    @staticmethod
+    def _line_y(m: float, b: float, x: float) -> float:
+        return float(m * x + b)
+
 
     def _load_config(self, json_path: str | Path) -> Dict:
         json_path = Path(json_path)
@@ -280,6 +306,7 @@ class PatternDirector:
         return tr.rolling(n, min_periods=n).mean()
 
     def _rsi(self, close: pd.Series, n: int = 14) -> pd.Series:
+        close = close.squeeze("columns") if isinstance(close, pd.DataFrame) else close
         delta = close.diff()
         up = delta.clip(lower=0.0)
         down = -delta.clip(upper=0.0)
@@ -289,6 +316,7 @@ class PatternDirector:
         return 100 - (100 / (1 + rs))
 
     def _macd(self, close: pd.Series, fast=12, slow=26, signal=9):
+        close = close.squeeze("columns") if isinstance(close, pd.DataFrame) else close
         ema_fast = close.ewm(span=fast, adjust=False).mean()
         ema_slow = close.ewm(span=slow, adjust=False).mean()
         macd = ema_fast - ema_slow
@@ -1119,6 +1147,99 @@ class PatternDirector:
         notes = f"Flag ({side}) | {self._trend_context(df)}"
         return self.Plan(name, side_out, state, section.index[-1],
                         float(entry), float(stop), float(target), cancel_now, status, notes)
+
+    def _detect_trend_channel_touch(self, df: pd.DataFrame,
+                                    lookback: int = 180) -> Optional["PatternDirector.Plan"]:
+        """
+        Detect parallel-ish rising/falling channel from swing highs/lows,
+        alert when last close is near either boundary.
+        """
+        section = self._tail(df, "trend_channel", lookback)
+        if len(section) < 50:
+            return None
+
+        highs = section["high"].to_numpy()
+        lows  = section["low"].to_numpy()
+        closes = section["close"].to_numpy()
+        atr14 = float(section["atr14"].iloc[-1])
+        last_close = float(closes[-1])
+
+        # pivots
+        ups = self._swing_highs(highs, 3)
+        dns = self._swing_lows(lows, 3)
+        if len(ups) < self.trend_min_points or len(dns) < self.trend_min_points:
+            return None
+
+        # x-axis as simple 0..N-1 index inside 'section'
+        xs = np.arange(len(section))
+
+        # fit lines
+        fit_hi = self._fit_line(xs[np.array(ups)], highs[np.array(ups)])
+        fit_lo = self._fit_line(xs[np.array(dns)], lows[np.array(dns)])
+        if fit_hi is None or fit_lo is None:
+            return None
+        m_hi, b_hi = fit_hi
+        m_lo, b_lo = fit_lo
+
+        # channel sanity: same slope direction and roughly parallel
+        if m_hi * m_lo <= 0:
+            return None
+        denom = max(abs((m_hi + m_lo) / 2.0), 1e-9)
+        if abs(m_hi - m_lo) / denom > self.trend_parallel_tol:
+            return None
+
+        # ensure the channel is not inverted (upper > lower) at the right edge
+        x_last = float(len(section) - 1)
+        y_hi_last = self._line_y(m_hi, b_hi, x_last)
+        y_lo_last = self._line_y(m_lo, b_lo, x_last)
+        if y_hi_last <= y_lo_last:
+            # swap if needed
+            m_hi, b_hi, m_lo, b_lo = m_lo, b_lo, m_hi, b_hi
+            y_hi_last, y_lo_last = y_lo_last, y_hi_last
+            # if still bad, bail
+            if y_hi_last <= y_lo_last:
+                return None
+
+        # how close are we?
+        buf_abs = max(self.trend_near_atr_mult * atr14, self.trend_near_pct * max(last_close, 1e-9))
+        dist_to_upper = y_hi_last - last_close
+        dist_to_lower = last_close - y_lo_last
+
+        near_upper = 0.0 <= dist_to_upper <= buf_abs
+        near_lower = 0.0 <= dist_to_lower <= buf_abs
+        if not (near_upper or near_lower):
+            return None
+
+        # Build actionable plan:
+        # - near lower: bullish bounce setup: entry slightly above line, stop slightly below, target = upper line
+        # - near upper: bearish fade (if allowed); otherwise awareness only
+        if near_lower:
+            side = "bull"
+            entry = max(last_close, y_lo_last + 0.25 * buf_abs)
+            stop  = y_lo_last - 0.75 * buf_abs
+            target = y_hi_last - 0.25 * buf_abs
+            state = "CANDLE"          # immediate actionable idea
+            cancel_now = last_close < stop
+            status = self._status_for_signal(cancel_now, signal_is_today=True)
+            slope_txt = "rising" if (m_hi + m_lo)/2 > 0 else "falling"
+            notes = f"Channel touch (lower,{slope_txt}); width={(y_hi_last - y_lo_last):.2f}; buf≈{buf_abs:.2f}"
+            return self.Plan("Trend Channel — Support Touch", side, state, section.index[-1],
+                             float(entry), float(stop), float(target), bool(cancel_now), status, notes)
+
+        # near upper
+        side = "bear"
+        entry = min(last_close, y_hi_last - 0.25 * buf_abs)
+        stop  = y_hi_last + 0.75 * buf_abs
+        target = y_lo_last + 0.25 * buf_abs
+        state = "CANDLE"
+        cancel_now = last_close > stop
+        status = self._status_for_signal(cancel_now, signal_is_today=True)
+        slope_txt = "rising" if (m_hi + m_lo)/2 > 0 else "falling"
+        notes = f"Channel touch (upper,{slope_txt}); width={(y_hi_last - y_lo_last):.2f}; buf≈{buf_abs:.2f}"
+
+        return self.Plan("Trend Channel — Resistance Touch", side, state, section.index[-1],
+                         float(entry), float(stop), float(target), bool(cancel_now), status, notes)
+
 
 
 
