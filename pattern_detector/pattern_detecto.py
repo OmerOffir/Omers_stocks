@@ -88,6 +88,31 @@ class PatternDirector:
 
     # --------------- Public API ---------------
 
+    DEFAULT_LOOKBACKS = {
+        # general
+        "cup_handle": 200,
+        "double_bottom": 120,
+        "double_top": 120,
+        "triple_bottom": 150,
+        "head_shoulders": 180,
+        "asc_triangle": 120,
+        "desc_triangle": 120,
+        "sym_triangle": 120,
+        "near_sma150": 200,
+
+        # flags
+        "flag_bull": 60,
+        "flag_bear": 60,
+    }
+
+
+    def _tail(self, df: pd.DataFrame, n_key: str, override: Optional[int] = None) -> pd.DataFrame:
+        if n_key not in self.DEFAULT_LOOKBACKS and override is None:
+            raise KeyError(f"Unknown lookback key: {n_key}")
+        n = override if override is not None else self.DEFAULT_LOOKBACKS[n_key]
+        return df.tail(int(n))
+
+    
     def run(self, include_report: bool = True) -> Dict[str, Dict]:
         results: Dict[str, Dict] = {}
         for t in self.tickers:
@@ -642,13 +667,13 @@ class PatternDirector:
         # --- NEW 5-bar continuation (p4,p3,p2,p1,cur) ---
         if self._is_rising_three_methods(p4, p3, p2, p1, cur):
             hi = max(self._val(p4["high"]), self._val(cur["high"]))
-            lo = self._val(min(p3["low"], p2["low"], p1["low"], p4["low"]))
-            add("Rising Three Methods","bull", hi, lo, df.index[-1], "5-bar")
+            lo = min(self._val(p3["low"]), self._val(p2["low"]), self._val(p1["low"]), self._val(p4["low"]))
+            add("Rising Three Methods", "bull", hi, lo, df.index[-1], "5-bar")
 
         if self._is_falling_three_methods(p4, p3, p2, p1, cur):
-            hi = self._val(max(p3["high"], p2["high"], p1["high"], p4["high"]))
+            hi = max(self._val(p3["high"]), self._val(p2["high"]), self._val(p1["high"]), self._val(p4["high"]))
             lo = min(self._val(p4["low"]), self._val(cur["low"]))
-            add("Falling Three Methods","bear", hi, lo, df.index[-1], "5-bar")
+            add("Falling Three Methods", "bear", hi, lo, df.index[-1], "5-bar")
 
         return plans, bears_info
 
@@ -691,7 +716,8 @@ class PatternDirector:
                                lookback: int = 150,
                                min_depth: float = 0.12,
                                max_handle_depth: float = 0.10) -> Optional[Plan]:
-        section = df.iloc[-lookback:].copy()
+        # section = df.iloc[-lookback:].copy()
+        section = self._tail(df, "cup_handle", lookback)
         highs = section["high"].to_numpy()
         lows = section["low"].to_numpy()
         closes = section["close"].to_numpy()
@@ -750,7 +776,8 @@ class PatternDirector:
                               df: pd.DataFrame,
                               lookback: int = 120,
                               max_gap_pct: float = 0.03) -> Optional[Plan]:
-        section = df.iloc[-lookback:].copy()
+        # section = df.iloc[-lookback:].copy()
+        section = self._tail(df, "double_bottom", lookback)
         lows = section["low"].to_numpy()
         highs = section["high"].to_numpy()
         closes = section["close"].to_numpy()
@@ -787,7 +814,8 @@ class PatternDirector:
                                    df: pd.DataFrame,
                                    lookback: int = 150,
                                    shoulder_tol: float = 0.10) -> Optional[Plan]:
-        section = df.iloc[-lookback:].copy()
+        # section = df.iloc[-lookback:].copy()
+        section = self._tail(df, "head_shoulders", lookback)
         highs = section["high"].to_numpy()
         lows = section["low"].to_numpy()
         closes = section["close"].to_numpy()
@@ -831,7 +859,8 @@ class PatternDirector:
     
     def _detect_double_top(self, df: pd.DataFrame,
         lookback: int = 120, tol: float = 0.01) -> Optional[Plan]:
-        section = df.iloc[-lookback:].copy()
+        # section = df.iloc[-lookback:].copy()
+        section = self._tail(df, "double_top", lookback)
         highs = section["high"].to_numpy()
         closes = section["close"].to_numpy()
         atr14 = float(section["atr14"].iloc[-1])
@@ -863,7 +892,8 @@ class PatternDirector:
 
     def _detect_triple_bottom(self, df: pd.DataFrame,
                             lookback: int = 150, tol: float = 0.012) -> Optional[Plan]:
-        section = df.iloc[-lookback:].copy()
+        # section = df.iloc[-lookback:].copy()
+        section = self._tail(df, "triple_bottom", lookback)
         lows = section["low"].to_numpy()
         highs = section["high"].to_numpy()
         closes = section["close"].to_numpy()
@@ -896,7 +926,8 @@ class PatternDirector:
     def _detect_ascending_triangle(self, df: pd.DataFrame,
                                 lookback: int = 120, tol: float = 0.01,
                                 min_rr: float = None) -> Optional["PatternDirector.Plan"]:
-        section = df.iloc[-lookback:].copy()
+        # section = df.iloc[-lookback:].copy()
+        section = self._tail(df, "asc_triangle", lookback)
         highs = section["high"].to_numpy()
         lows  = section["low"].to_numpy()
         closes = section["close"].to_numpy()
@@ -952,7 +983,8 @@ class PatternDirector:
 
     def _detect_descending_triangle(self, df: pd.DataFrame,
                                     lookback: int = 120, tol: float = 0.01) -> Optional[Plan]:
-        section = df.iloc[-lookback:].copy()
+        # section = df.iloc[-lookback:].copy()
+        section = self._tail(df, "desc_triangle", lookback)
         highs = section["high"].to_numpy()
         lows  = section["low"].to_numpy()
         closes = section["close"].to_numpy()
@@ -987,7 +1019,8 @@ class PatternDirector:
 
     def _detect_symmetrical_triangle(self, df: pd.DataFrame,
                                     lookback: int = 120) -> Optional[Plan]:
-        section = df.iloc[-lookback:].copy()
+        # section = df.iloc[-lookback:].copy()
+        section = self._tail(df, "sym_triangle", lookback)
         highs = section["high"].to_numpy()
         lows  = section["low"].to_numpy()
         closes = section["close"].to_numpy()
@@ -1034,7 +1067,8 @@ class PatternDirector:
                     lookback: int = 60, min_pole_pct: float = 0.05,
                     max_pullback_pct: float = 0.5, side: str = "bull") -> Optional[Plan]:
         """Very simple flag: sharp pole, then 5–20 bars drifting counter‑trend in a tight channel."""
-        section = df.iloc[-lookback:].copy()
+        # section = df.iloc[-lookback:].copy()
+        section = self._tail(df, f"flag_{side}", lookback)
         close = section["close"].to_numpy()
         high  = section["high"].to_numpy()
         low   = section["low"].to_numpy()

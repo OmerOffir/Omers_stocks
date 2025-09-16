@@ -116,9 +116,7 @@ class CandlestickPlotter:
         plot_kwargs = dict(
             type="candle",
             style=style,
-            addplot=(add_plots or None),
             volume=("Volume" in df.columns),
-            panel_ratios=(3, 1),
             figratio=(16, 9),
             figscale=1.2,
             tight_layout=True,
@@ -126,8 +124,19 @@ class CandlestickPlotter:
             datetime_format="%b %d",
             returnfig=True,
         )
+
+        # only include mav if provided
         if mav is not None:
             plot_kwargs["mav"] = mav
+
+        # only include addplot if we actually have overlays
+        if add_plots:
+            # mplfinance accepts a single addplot or a list of addplots
+            plot_kwargs["addplot"] = add_plots[0] if len(add_plots) == 1 else add_plots
+
+        # only include panel_ratios when we’re actually drawing a volume panel
+        if plot_kwargs["volume"]:
+            plot_kwargs["panel_ratios"] = (3, 1)
 
         fig, _ = mpf.plot(df, **plot_kwargs)
 

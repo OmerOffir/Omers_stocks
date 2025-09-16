@@ -38,9 +38,10 @@ class BotPatternDetector:
 
     def _pick_color(self, status: str, state: str) -> int:
         if status == "CANCELED NOW": return 0xE74C3C  # red
-        if state == "BREAKOUT" or status == "VALID": return 0x2ECC71  # green
-        if status == "PENDING": return 0xF39C12     # orange
-        return 0x95A5A6                              # gray
+        if state == "BREAKOUT":      return 0x2ECC71  # green
+        if status == "VALID":        return 0x2ECC71  # green
+        if status == "PENDING":      return 0xF39C12  # orange
+        return 0x95A5A6  
 
     def _fmt(self, x):
         return "-" if x is None else (f"{x:.2f}" if isinstance(x, (int, float)) else str(x))
@@ -111,7 +112,7 @@ class BotPatternDetector:
             # ----- render and attach the chart image -----
             try:
                 image_path = self.plotter.plot(
-                    30, ticker, theme="dark", draw_sma150=True, mav=None, show_price_line=False
+                    180, ticker, theme="dark", draw_sma150=True, mav=None, show_price_line=False
                 )  # returns graph_maker/images/{TICKER}.png
                 # Send embed + attached image
                 self.discord_notifier.send_embed_with_image("detected_stocks", embed, image_path)
@@ -200,7 +201,7 @@ class BotPatternDetector:
 
         try:
             image_path = self.plotter.plot(
-                30, ticker.upper(), theme="dark", draw_sma150=True, mav=None, show_price_line=False
+                180, ticker.upper(), theme="dark", draw_sma150=True, mav=None, show_price_line=False
             )
             self.discord_notifier.send_embed_with_image("detected_stocks", embed, image_path)
         except Exception as e:
