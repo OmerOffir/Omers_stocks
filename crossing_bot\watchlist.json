@@ -1,4 +1,10 @@
 {
+  "AAP": [
+    {
+      "direction": "down",
+      "level": 232.0
+    }
+  ],
   "AAPL": [
     {
       "direction": null,
@@ -9,6 +15,18 @@
     {
       "direction": "up",
       "level": 55.0
+    }
+  ],
+  "DOUL": [
+    {
+      "direction": "down",
+      "level": 255.0
+    }
+  ],
+  "FOUL": [
+    {
+      "direction": "down",
+      "level": 255.0
     }
   ]
 }

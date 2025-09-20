@@ -17,6 +17,7 @@ from discord_stock.token import discord_tok
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
+from crypto.crypto_bot import PRICE_SOURCE
 
 import discord
 from discord.ext import commands
@@ -99,6 +100,15 @@ class CrossAlertBot:
         self.bot = commands.Bot(command_prefix="!", intents=intents)
         self.tree = self.bot.tree
         self.pattern_bot = pattern_bot
+        # Load the crypto cog at startup (extension module: crypto/crypto_cog.py)
+        async def _setup_hook():
+            try:
+                await self.bot.load_extension("crypto.crypto_cog")
+                logging.getLogger("CrossAlertBot").info("[discord] crypto cog loaded")
+            except Exception as e:
+                logging.getLogger("CrossAlertBot").error(f"[discord] failed loading crypto cog: {e!r}")
+        self.bot.setup_hook = _setup_hook
+
 
         self.log = logging.getLogger("CrossAlertBot")
         self._task: asyncio.Task | None = None
