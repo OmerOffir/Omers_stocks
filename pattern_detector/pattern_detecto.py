@@ -380,7 +380,10 @@ class PatternDirector:
             raise ValueError(f"No data for {ticker}.")
 
         df = self._normalize_price_columns(df)
-        df = df.dropna(subset=["open", "high", "low", "close"])   # <- keep only OHLC-required rows
+        # NEW: drop duplicate timestamps
+        df = df[~df.index.duplicated(keep="last")]
+
+        df = df.dropna(subset=["open", "high", "low", "close"])
         if df.empty:
             raise ValueError(f"No OHLC rows after cleaning for {ticker}.")
 
