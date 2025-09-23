@@ -118,13 +118,19 @@ class PatternDirector:
         if n_key not in self.DEFAULT_LOOKBACKS and override is None:
             raise KeyError(f"Unknown lookback key: {n_key}")
         n = override if override is not None else self.DEFAULT_LOOKBACKS[n_key]
+        if df.empty:
+            raise ValueError("Empty DataFrame passed to _tail")
         return df.tail(int(n))
 
     
     def run(self, include_report: bool = True) -> Dict[str, Dict]:
         results: Dict[str, Dict] = {}
         for t in self.tickers:
-            df = self._get_history(t, self.period, self.interval)
+            try:
+                df = self._get_history(t, self.period, self.interval)
+            except Exception as e:
+                print(f"[{t}] skipped: {e}")
+                continue
 
             chart_plans: List[PatternDirector.Plan] = []
             bear_chart_info: List[PatternDirector.Plan] = []
@@ -287,16 +293,111 @@ class PatternDirector:
             raise ValueError("Config must contain non-empty 'tickers' (direct or from tickers_files).")
         return raw
 
+    def _ensure_series(self, x) -> pd.Series:
+        if isinstance(x, pd.DataFrame):
+            return x.iloc[:, 0]
+        return x
+
+    def _normalize_price_columns(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Ensure single-level columns named: open, high, low, close, volume, adj_close.
+        Works for yfinance outputs like:
+        - plain columns: ['Open','High','Low','Close','Adj Close','Volume']
+        - MultiIndex (field,ticker) -> 'close_aapl'
+        - MultiIndex (ticker,field) -> 'aapl_close'
+        - Any order/spacing variants (e.g., 'adj close_aapl')
+        """
+        if df.empty:
+            return df
+
+        def clean_token(x) -> str:
+            s = str(x).strip().lower().replace(" ", "_")
+            # normalize common variants
+            if s == "adjclose" or s == "adj_close" or s == "adj_close_":
+                return "adj_close"
+            return s
+
+        # Flatten columns to strings
+        if isinstance(df.columns, pd.MultiIndex):
+            flat = []
+            for tup in df.columns.to_flat_index():
+                toks = [clean_token(t) for t in tup if t is not None and str(t) != ""]
+                # join with underscore, then squeeze duplicate underscores
+                name = "_".join([t for t in toks if t != "nan"]).replace("__", "_").strip("_")
+                flat.append(name)
+            df.columns = flat
+        else:
+            df.columns = [clean_token(c) for c in df.columns]
+
+        # Normalize 'adj close' → 'adj_close' even if it appeared embedded
+        df.columns = [c.replace("adj close", "adj_close").replace(" ", "_").replace("__", "_") for c in df.columns]
+
+        # Pick out the field token regardless of position/order
+        FIELD_ALIASES = {
+            "open": {"open"}, "high": {"high"}, "low": {"low"},
+            "close": {"close"}, "volume": {"volume"},
+            "adj_close": {"adj_close", "adjclose", "adj", "adjusted_close", "adjusted"},
+        }
+
+        def infer_field(col: str) -> Optional[str]:
+            toks = col.split("_")
+            if "adj" in toks and "close" in toks:
+                return "adj_close"
+            for field, aliases in FIELD_ALIASES.items():
+                if any(tok in aliases for tok in toks):
+                    return field
+            return None
+
+        # Map columns → fields
+        rename_map = {c: infer_field(c) or c for c in df.columns}
+        df = df.rename(columns=rename_map)
+
+        # Keep the *first* occurrence of each canonical field
+        selected: dict[str, pd.Series] = {}
+        for c in df.columns:
+            if c in {"open", "high", "low", "close", "volume", "adj_close"} and c not in selected:
+                selected[c] = df[c]
+
+        # If nothing was selected for a field, it just won’t appear
+        df = pd.DataFrame(selected, index=df.index)
+
+        # Fallback: synthesize close from adj_close if needed
+        if "close" not in df.columns and "adj_close" in df.columns:
+            df["close"] = df["adj_close"]
+
+        required = {"open", "high", "low", "close"}
+        missing = [c for c in required if c not in df.columns]
+        if missing:
+            raise KeyError(f"Missing {missing}. Got: {list(df.columns)}")
+        return df
+
+
+
     def _get_history(self, ticker: str, period: str, interval: str) -> pd.DataFrame:
         df = yf.download(ticker, period=period, interval=interval,
-                         progress=False, auto_adjust=False)
+                        progress=False, auto_adjust=False)
         if df.empty:
             raise ValueError(f"No data for {ticker}.")
-        df = df.rename(columns=str.lower).dropna()
-        df["atr14"] = self._atr(df, 14)
-        df["rsi14"] = self._rsi(df["close"], 14)
-        df["macd"], df["macd_signal"], df["macd_hist"] = self._macd(df["close"])
-        df["sma150"] = df["close"].rolling(150, min_periods=150).mean()  
+
+        df = self._normalize_price_columns(df)
+        df = df.dropna(subset=["open", "high", "low", "close"])   # <- keep only OHLC-required rows
+        if df.empty:
+            raise ValueError(f"No OHLC rows after cleaning for {ticker}.")
+
+        # print("norm cols:", df.columns)
+
+        close = self._ensure_series(df["close"]).astype(float)
+        high  = self._ensure_series(df["high"]).astype(float)
+        low   = self._ensure_series(df["low"]).astype(float)
+
+        base = pd.DataFrame({"high": high, "low": low, "close": close})
+        df["atr14"] = self._atr(base, 14)
+        df["rsi14"] = self._rsi(close, 14)
+        macd, sig, hist = self._macd(close)
+        df["macd"] = self._ensure_series(macd)
+        df["macd_signal"] = self._ensure_series(sig)
+        df["macd_hist"] = self._ensure_series(hist)
+        df["sma150"] = close.rolling(150, min_periods=150).mean()
         return df
 
     def _atr(self, df: pd.DataFrame, n: int = 14) -> pd.Series:
@@ -306,7 +407,7 @@ class PatternDirector:
         return tr.rolling(n, min_periods=n).mean()
 
     def _rsi(self, close: pd.Series, n: int = 14) -> pd.Series:
-        close = close.squeeze("columns") if isinstance(close, pd.DataFrame) else close
+        close = self._ensure_series(close).astype(float)
         delta = close.diff()
         up = delta.clip(lower=0.0)
         down = -delta.clip(upper=0.0)

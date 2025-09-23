@@ -100,6 +100,7 @@ class CrossAlertBot:
         self.bot = commands.Bot(command_prefix="!", intents=intents)
         self.tree = self.bot.tree
         self.pattern_bot = pattern_bot
+        self._pattern_lock = asyncio.Lock()  
         # Load the crypto cog at startup (extension module: crypto/crypto_cog.py)
         async def _setup_hook():
             try:
@@ -170,7 +171,25 @@ class CrossAlertBot:
 
             # ---------------- Pattern requests channel ----------------
             if message.channel.id == PATTERN_CHANNEL_ID:
-                # Expect a bare ticker like AAPL / BTC-USD
+                # 1) On-demand full scan with "?"
+                if content == "?":
+                    if not self.pattern_bot:
+                        await message.channel.send("Pattern bot not ready.")
+                        return
+                    if self._pattern_lock.locked():
+                        await message.channel.send("A scan is already running. Please wait…")
+                        return
+                    await message.channel.send("🔎 Running full pattern scan…")
+                    async with self._pattern_lock:
+                        try:
+                            async with message.channel.typing():
+                                await asyncio.to_thread(self.pattern_bot.check_stocks_patterns)
+                            await message.channel.send("✅ Done.")
+                        except Exception as e:
+                            await message.channel.send(f"❌ Error: `{e!r}`")
+                    return
+
+                # 2) Single-ticker request
                 if re.fullmatch(r"[A-Za-z0-9.\-]{1,12}", content):
                     tkr = self._normalize_ticker_for_yf(content)
                     async with message.channel.typing():
@@ -178,7 +197,7 @@ class CrossAlertBot:
                     if not ok:
                         await message.channel.send(f"🧐 `{tkr}` — nothing interesting found.")
                 else:
-                    await message.channel.send("Send just a ticker, e.g. `AAPL` or `BTC-USD`.")
+                    await message.channel.send("Send just a ticker, e.g. `AAPL` or `BTC-USD`, or `?` for a full scan.")
                 return
 
             # ---------------- housekeeping: clean ----------------
@@ -528,7 +547,6 @@ class DiscordNotifier:
 class BotManager:
     def __init__(self, tz: str = "Asia/Tel_Aviv"):
         self.tz = ZoneInfo(tz)
-        self.scheduler = AsyncIOScheduler(timezone=self.tz)
         self.pattern_bot = BotPatternDetector()
         self.cross_bot = CrossAlertBot(pattern_bot=self.pattern_bot)
         self.notifier = DiscordNotifier(self.cross_bot)
@@ -536,10 +554,12 @@ class BotManager:
 
     async def _run_pattern_bot(self):
         try:
+            print("[pattern_bot] starting check_stocks_patterns…")
             if self.pattern_bot is None:
                 from bots.pattern_detector_bot import BotPatternDetector
                 self.pattern_bot = BotPatternDetector()
             await asyncio.to_thread(self.pattern_bot.check_stocks_patterns)
+            print("[pattern_bot] finished.")
         except Exception as e:
             print(f"[pattern_bot] error: {e!r}")
 
@@ -554,25 +574,7 @@ class BotManager:
         except Exception as e:
             print(f"[discord] start error: {e!r}")
 
-    def schedule_jobs(self):
-        # Daily at 08:00 — run your report/pattern bot
-        self.scheduler.add_job(
-            self._run_pattern_bot,
-            CronTrigger(hour=8, minute=0),
-            id="pattern_daily",
-            max_instances=1,
-            misfire_grace_time=900,
-            coalesce=True,
-        )
-        # Daily at 08:00 — ensure Discord is running
-        self.scheduler.add_job(
-            self._start_discord_once,
-            CronTrigger(hour=8, minute=0),
-            id="discord_start_daily",
-            max_instances=1,
-            misfire_grace_time=900,
-            coalesce=True,
-        )
+
 
     def _fmt_tdelta(self, td: timedelta) -> str:
         secs = int(max(td.total_seconds(), 0))
@@ -583,30 +585,13 @@ class BotManager:
         return f"{s}s"
 
     def start(self):
-        self.schedule_jobs()
-        self.scheduler.start()
-
-        # START DISCORD IMMEDIATELY ON BOOT
-        asyncio.create_task(self._start_discord_once())   # <-- change to this
-
-        for jid in ("pattern_daily", "discord_start_daily"):
-            job = self.scheduler.get_job(jid)
-            if job and job.next_run_time:
-                nxt = job.next_run_time.astimezone(self.tz)
-                print(f"[{jid}] next run at {nxt:%Y-%m-%d %H:%M %Z}")
+        asyncio.create_task(self._start_discord_once())
+        asyncio.create_task(self._run_pattern_bot())
 
     async def run_forever(self):
         self.start()
         while True:
-            jobs = [j for j in (self.scheduler.get_job("pattern_daily"),
-                                self.scheduler.get_job("discord_start_daily")) if j]
-            next_times = [j.next_run_time.astimezone(self.tz) for j in jobs if j and j.next_run_time]
-            if next_times:
-                nxt = min(next_times)
-                now = datetime.now(self.tz)
-                remaining = self._fmt_tdelta(nxt - now)
-                print(f"\r[next job] at {nxt:%Y-%m-%d %H:%M %Z} (in {remaining})", end="", flush=True)
-            await asyncio.sleep(1)
+            await asyncio.sleep(3600)  # keep process alive
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)

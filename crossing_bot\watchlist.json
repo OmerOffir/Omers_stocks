@@ -11,6 +11,16 @@
       "level": 226.7
     }
   ],
+  "AMZN": [
+    {
+      "direction": "down",
+      "level": 219.0
+    },
+    {
+      "direction": "down",
+      "level": 220.0
+    }
+  ],
   "BMNR": [
     {
       "direction": "up",
@@ -18,12 +28,6 @@
     }
   ],
   "DOUL": [
-    {
-      "direction": "down",
-      "level": 255.0
-    }
-  ],
-  "FOUL": [
     {
       "direction": "down",
       "level": 255.0
