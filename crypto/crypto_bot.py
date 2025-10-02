@@ -11,6 +11,7 @@ from discord.ext import tasks
 from discord_stock.token import discord_tok
 import aiohttp
 
+
 # ==== CONFIG VIA ENV ====
 TOKEN = f"{discord_tok.dis_1}{discord_tok.dis_2}{discord_tok.dis_3}"
 CHANNEL_ID = int("1418555720160247958")  # make it int # target channel for auto-posts
