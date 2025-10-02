@@ -108,6 +108,11 @@ class CrossAlertBot:
                 logging.getLogger("CrossAlertBot").info("[discord] crypto cog loaded")
             except Exception as e:
                 logging.getLogger("CrossAlertBot").error(f"[discord] failed loading crypto cog: {e!r}")
+            try:
+                await self.bot.load_extension("daytradebot.gainers_cog")   # <— add this
+                logging.getLogger("CrossAlertBot").info("[discord] gainers cog loaded")
+            except Exception as e:
+                logging.getLogger("CrossAlertBot").error(f"[discord] failed loading gainers cog: {e!r}")
         self.bot.setup_hook = _setup_hook
 
 
