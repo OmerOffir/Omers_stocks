@@ -122,7 +122,7 @@ class GainersCog(commands.Cog):
     def __init__(self, bot: commands.Bot):
         self.bot = bot
         self.scheduler = AsyncIOScheduler(timezone=TZ)
-        default_times = ["15:00", "15:30", "16:30", "17:00", "17:30", "18:30", "19:00", "19:30", "20:00", "01:00"]
+        default_times = ["16:31","16:35" ,"17:00", "17:30", "18:30", "19:00", "19:30", "20:00", "01:00"]
         raw = os.getenv("GAINERS_TIMES", ",".join(default_times))
         self.times: List[str] = [t.strip() for t in raw.split(",") if t.strip()]
 

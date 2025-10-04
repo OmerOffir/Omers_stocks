@@ -113,6 +113,13 @@ class CrossAlertBot:
                 logging.getLogger("CrossAlertBot").info("[discord] gainers cog loaded")
             except Exception as e:
                 logging.getLogger("CrossAlertBot").error(f"[discord] failed loading gainers cog: {e!r}")
+            # inside CrossAlertBot.__init__ -> _setup_hook
+            try:
+                await self.bot.load_extension("analyst_recommandation.analyst_reco_cog")
+                logging.getLogger("CrossAlertBot").info("[discord] analyst_reco cog loaded")
+            except Exception as e:
+                logging.getLogger("CrossAlertBot").error(f"[discord] failed loading analyst_reco cog: {e!r}")
+
         self.bot.setup_hook = _setup_hook
 
 
