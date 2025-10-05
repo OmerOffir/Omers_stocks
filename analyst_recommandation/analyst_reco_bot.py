@@ -84,10 +84,10 @@ def fetch_latest_reco(symbol: str, token: Optional[str] = None, retries: int = 2
             if r.status_code == 429:
                 raise FinnhubError("Rate limited by Finnhub (HTTP 429)")
             if not r.ok:
-                raise FinnhubError(f"HTTP {r.status_code}: {r.text}")
+                None
             data = r.json()
             if not isinstance(data, list) or not data:
-                raise FinnhubError("No recommendation data")
+                None
             return data[0]  # newest first
         except Exception as e:
             last_err = e
