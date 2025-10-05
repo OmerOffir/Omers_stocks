@@ -111,7 +111,7 @@ def fetch_latest_reco(symbol: str, token: Optional[str] = None) -> Dict:
         raise FinnhubError(f"HTTP {r.status_code}: {r.text[:200]}")
     data = r.json()
     if not isinstance(data, list) or not data:
-        raise FinnhubError("No recommendation data.")
+        None
     return data[0]  # latest first
 
 def fetch_price_target(symbol: str, token: Optional[str] = None) -> Optional[Dict]:
