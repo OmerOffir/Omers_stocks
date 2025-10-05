@@ -128,14 +128,23 @@ class GainersCog(commands.Cog):
 
     # --- lifecycle ---
     async def cog_load(self):
-        # schedule jobs (starts when bot is ready)
+        # start fresh to avoid duplicate schedules after reloads
+        try:
+            self.scheduler.remove_all_jobs()
+        except Exception:
+            pass
+
         for t in self.times:
             hh, mm = t.split(":")
             self.scheduler.add_job(
                 self._post_top_gainers,
-                CronTrigger(hour=int(hh), minute=int(mm), day_of_week="mon-fri")
+                CronTrigger(hour=int(hh), minute=int(mm), day_of_week="mon-fri", timezone=TZ),
+                id=f"gainers-{hh}{mm}",
+                replace_existing=True,
+                misfire_grace_time=300,
             )
         self.scheduler.start()
+        print("[GainersCog] Scheduled jobs:", [j.id for j in self.scheduler.get_jobs()])
 
     async def cog_unload(self):
         self.scheduler.shutdown(wait=False)
@@ -146,12 +155,15 @@ class GainersCog(commands.Cog):
 
     # --- helpers ---
     async def _post_top_gainers(self, interaction: discord.Interaction | None = None, rows: int = 12):
+        # pick channel every run
+        ch = interaction.channel if interaction else self.bot.get_channel(CHANNEL_ID)
+        if not ch:
+            print("[GainersCog] Channel not found.")
+            return
+
         now = datetime.now(TZ)
         if not self._is_market_day(now):
-            # Optional: tell the user/channel why we skipped
-            ch = interaction.channel if interaction else self.bot.get_channel(CHANNEL_ID)
-            if ch:
-                await ch.send("⛔ Market is closed (weekend). Top Gainers run only Mon–Fri.")
+            await ch.send("⛔ Market is closed (weekend). Top Gainers run only Mon–Fri.")
             return
         try:
             df = get_top_gainers(limit=max(rows, 12))
