@@ -138,8 +138,6 @@ async def on_message(message: discord.Message):
         return
     if CHANNEL_ID and message.channel.id != CHANNEL_ID:
         return
-    if message.channel.id not in [1418555720160247958]:
-        return
 
     content = message.content.strip().lower()
 

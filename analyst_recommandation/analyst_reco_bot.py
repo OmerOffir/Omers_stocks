@@ -227,9 +227,6 @@ class AnalystRec(commands.Cog):
         if message.author.bot or not message.guild:
             return
         
-        if message.channel.id not in [1423996530641076315]:
-            return
-
         # Optional: only react if the message is in the same configured channel
         # if CHANNEL_ID and message.channel.id != CHANNEL_ID:
         #     return

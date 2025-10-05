@@ -38,7 +38,6 @@ DISCORD_TOKEN = f"{discord_tok.dis_1}{discord_tok.dis_2}{discord_tok.dis_3}"
 LISTEN_CHANNEL_ID = int(os.getenv("LISTEN_CHANNEL_ID", "0")) or 1406720397893828760  # replace fallback
 PATTERN_CHANNEL_ID = int(os.getenv("PATTERN_CHANNEL_ID", "0")) or 1404051018320449627
 ALERT_CHANNEL_ID  = int(os.getenv("ALERT_CHANNEL_ID", "0")) or None  # where crossing alerts are posted; defaults to listen channel
-ALLOWED_CHANNELS = [1423996530641076315, 1406720397893828760,1418555720160247958,1411064822635696188,1404051018320449627] 
 
 # Pattern detections destination
 DETECTED_STOCKS_CHANNEL_ID = int(os.getenv("DETECTED_STOCKS_CHANNEL_ID", "0")) or None
@@ -170,8 +169,6 @@ class CrossAlertBot:
             )
 
             if message.author.bot:
-                return
-            if message.channel.id not in ALLOWED_CHANNELS:
                 return
 
             # If Message Content Intent is off, content can be None/empty

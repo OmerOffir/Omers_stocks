@@ -119,9 +119,6 @@ async def on_message(message: discord.Message):
     # Only listen in the configured channel
     if message.channel.id != LISTEN_CHANNEL_ID:
         return
-    if message.channel.id not in [1406720397893828760]:
-        return
-
     parsed = parse_alert(message.content)
     if not parsed:
         return
