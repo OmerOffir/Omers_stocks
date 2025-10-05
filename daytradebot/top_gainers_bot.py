@@ -208,6 +208,8 @@ async def on_message(message: discord.Message):
     # Prevent bot from responding to itself
     if message.author == bot.user:
         return
+    if message.channel.id not in [1411064822635696188]:
+        return
 
     # On-demand: user types "top" (case-insensitive) anywhere
     if message.content.strip().lower() == "top":

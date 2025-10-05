@@ -193,6 +193,9 @@ class GainersCog(commands.Cog):
     async def on_message(self, message: discord.Message):
         if message.author.bot:
             return
+        if message.channel.id not in [1411064822635696188]:
+            return
+
         # only react to plain "top"
         if message.content and message.content.strip().lower() == "top":
             await self._post_top_gainers(interaction=None, rows=12)

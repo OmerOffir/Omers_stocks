@@ -46,6 +46,9 @@ class CryptoPricesCog(commands.Cog):
             return
         if not CRYPTO_CHANNEL_ID or message.channel.id != CRYPTO_CHANNEL_ID:
             return
+        if message.channel.id not in [1418555720160247958]:
+            return
+        
         content = (message.content or "").strip().lower()
         if content in {"?", "?crypto"}:
             data = await get_prices(("BTC-USD", "ETH-USD"))
