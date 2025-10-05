@@ -307,7 +307,7 @@ class AnalystRecoCog(commands.Cog):
         except Exception as e:
             # Try to inform in the same channel, but don't crash if perms fail
             try:
-                await message.channel.send(f"Error fetching {symbol}: {e}")
+                pass
             except Exception:
                 pass
 
