@@ -131,25 +131,28 @@ class GainersCog(commands.Cog):
         # schedule jobs (starts when bot is ready)
         for t in self.times:
             hh, mm = t.split(":")
-            self.scheduler.add_job(self._post_top_gainers, CronTrigger(hour=int(hh), minute=int(mm)))
+            self.scheduler.add_job(
+                self._post_top_gainers,
+                CronTrigger(hour=int(hh), minute=int(mm), day_of_week="mon-fri")
+            )
         self.scheduler.start()
 
     async def cog_unload(self):
         self.scheduler.shutdown(wait=False)
+    
+    def _is_market_day(self, ts: datetime | None = None) -> bool:
+        ts = ts or datetime.now(TZ)
+        return ts.weekday() < 5  # 0=Mon ... 4=Fri
 
     # --- helpers ---
     async def _post_top_gainers(self, interaction: discord.Interaction | None = None, rows: int = 12):
-        # pick channel
-        ch = None
-        if interaction is not None:
-            ch = interaction.channel
-        if ch is None:
-            ch = self.bot.get_channel(CHANNEL_ID)
-
-        if ch is None:
-            print("[GainersCog] Channel not found. Set GAINERS_CHANNEL_ID/LISTEN_CHANNEL_ID.")
+        now = datetime.now(TZ)
+        if not self._is_market_day(now):
+            # Optional: tell the user/channel why we skipped
+            ch = interaction.channel if interaction else self.bot.get_channel(CHANNEL_ID)
+            if ch:
+                await ch.send("⛔ Market is closed (weekend). Top Gainers run only Mon–Fri.")
             return
-
         try:
             df = get_top_gainers(limit=max(rows, 12))
             fields = build_embed_fields(df, max_rows=rows)
