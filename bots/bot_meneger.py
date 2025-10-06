@@ -119,6 +119,11 @@ class CrossAlertBot:
                 logging.getLogger("CrossAlertBot").info("[discord] analyst_reco cog loaded")
             except Exception as e:
                 logging.getLogger("CrossAlertBot").error(f"[discord] failed loading analyst_reco cog: {e!r}")
+            try:
+                await self.bot.load_extension("tenk.tenk_monitor_cog")  # or "tenk.tenk_monitor_cog"
+                logging.getLogger("CrossAlertBot").info("[discord] 10-K cog loaded")
+            except Exception as e:
+                logging.getLogger("CrossAlertBot").error(f"[discord] failed loading 10-K cog: {e!r}")
 
         self.bot.setup_hook = _setup_hook
 
