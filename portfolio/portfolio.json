@@ -1,0 +1,43 @@
+{
+  "channel_id": 1425525386665529374,
+  "message_id": 1425563237478432881,
+  "positions": {
+    "RKLB": {
+      "entry": 45.5,
+      "stop": 44.3,
+      "target": 69.0,
+      "created_at": "2025-10-08T19:13:19Z"
+    },
+    "MRVL": {
+      "entry": 91.9,
+      "stop": 86.6,
+      "target": 105.5,
+      "created_at": "2025-10-08T19:39:37+00:00"
+    },
+    "PONY": {
+      "entry": 23.14,
+      "stop": 20.8,
+      "target": 29.8,
+      "created_at": "2025-10-08T19:45:29+00:00"
+    },
+    "PLTR": {
+      "entry": 154.64,
+      "stop": 146.5,
+      "target": 200.0,
+      "created_at": "2025-10-08T19:50:19+00:00"
+    },
+    "GOOGL": {
+      "entry": 198.0,
+      "stop": 233.0,
+      "target": 270.0,
+      "created_at": "2025-10-08T20:20:39+00:00"
+    },
+    "AMD": {
+      "entry": 164.0,
+      "stop": 153.0,
+      "target": 240.0,
+      "created_at": "2025-10-08T20:31:09+00:00"
+    }
+  },
+  "closed": []
+}

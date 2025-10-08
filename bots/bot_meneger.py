@@ -71,7 +71,7 @@ def _load_json(path: str, fallback):
         with open(path, "r", encoding="utf-8") as f:
             return json.load(f)
     except Exception as e:
-        logging.getLogger("persist").warning(f"Failed to load {path}: {e!r}")
+        # logging.getLogger("persist").warning(f"Failed to load {path}: {e!r}")
         return fallback
 
 def _save_json(path: str, obj) -> None:
@@ -124,6 +124,12 @@ class CrossAlertBot:
                 logging.getLogger("CrossAlertBot").info("[discord] 10-K cog loaded")
             except Exception as e:
                 logging.getLogger("CrossAlertBot").error(f"[discord] failed loading 10-K cog: {e!r}")
+            try:
+                await self.bot.load_extension("portfolio.portfolio_cog")
+                logging.getLogger("CrossAlertBot").info("[discord] portfolio cog loaded")
+            except Exception as e:
+                logging.getLogger("CrossAlertBot").error(f"[discord] failed loading portfolio cog: {e!r}")
+
 
         self.bot.setup_hook = _setup_hook
 
@@ -521,7 +527,7 @@ class CrossAlertBot:
                 pass
         self.log.info("[discord] stopped.")
 
-# -----------------------
+    # -----------------------
 # Notifier for pattern bot
 # -----------------------
 class DiscordNotifier:
@@ -609,6 +615,8 @@ class BotManager:
         self.start()
         while True:
             await asyncio.sleep(3600)  # keep process alive
+
+
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
