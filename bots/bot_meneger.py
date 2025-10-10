@@ -129,7 +129,11 @@ class CrossAlertBot:
                 logging.getLogger("CrossAlertBot").info("[discord] portfolio cog loaded")
             except Exception as e:
                 logging.getLogger("CrossAlertBot").error(f"[discord] failed loading portfolio cog: {e!r}")
-
+            try:
+                await self.bot.load_extension("private_rooms.private_rooms_cog")
+                logging.getLogger("CrossAlertBot").info("[discord] portfolio cog loaded")
+            except Exception as e:
+                logging.getLogger("CrossAlertBot").error(f"[discord] failed loading portfolio cog: {e!r}")
 
         self.bot.setup_hook = _setup_hook
 
